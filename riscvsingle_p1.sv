@@ -92,7 +92,7 @@ module controller(input  logic [6:0] op,
              ALUSrc, RegWrite, Jump, ImmSrc, ALUOp);
   aludec  ad(op[5], funct3, funct7b5, ALUOp, ALUControl);
 
-  assign PCSrc = Branch & Zero;
+  assign PCSrc = Jump | (Branch & Zero); //Jump Adicionado
 endmodule
 
 module maindec(input  logic [6:0] op,
@@ -106,7 +106,7 @@ module maindec(input  logic [6:0] op,
   logic [10:0] controls;
 
   assign {RegWrite, ImmSrc, ALUSrc, MemWrite,
-          ResultSrc, Branch, ALUOp} = controls;
+          ResultSrc, Branch, ALUOp, Jump} = controls;
 
   always_comb
     case(op)
@@ -115,6 +115,9 @@ module maindec(input  logic [6:0] op,
       7'b0100011: controls = 11'b0_01_1_1_00_0_00_0; // sw
       7'b0110011: controls = 11'b1_xx_0_0_00_0_10_0; // R-type 
       7'b1100011: controls = 11'b0_10_0_0_00_1_01_0; // beq
+      7'b0010011: controls = 11'b1_00_1_0_00_0_10_0; // I-type adicionado
+      7'b1101111: controls = 11'b1_11_0_0_10_0_00_1; // jal adicionado
+
       default:    controls = 11'bx_xx_x_x_xx_x_xx_x; // non-implemented instruction
     endcase
 endmodule
@@ -211,10 +214,16 @@ module extend(input  logic [31:7] instr,
  
   always_comb
     case(immsrc) 
+      // B-type (branches)
       2'b01:   immext = {{20{instr[31]}}, instr[31:25], instr[11:7]}; 
-               // B-type (branches)
+      // J-type (jal)     
       2'b11:   immext = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0}; 
-      default: immext = 32'bx; // undefined
+      // I-type (imediato) adicionado
+      2'b00:   immext = {{20{instr[31]}}, instr[31:20]};
+      // S-type (store)    adicionado    
+      2'b10:   immext = {{20{instr[31]}}, instr[31:25], instr[11:7]};
+      // undefined
+      default: immext = 32'bx; 
     endcase             
 endmodule
 
