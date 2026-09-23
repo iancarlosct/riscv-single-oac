@@ -73,7 +73,7 @@ module maindec(input  logic [6:0] op,
   always_comb
     case(op)
     // RegWrite_ImmSrc_ALUSrc_MemWrite_ResultSrc_Branch_ALUOp_Jump
-      7'b0000011: controls = 11'b1_00_1_0_01_0_00_0; // lw
+      7'b0000011: controls = 11'b1_10_1_0_01_0_00_0; // lw
       7'b0100011: controls = 11'b0_10_1_1_00_0_00_0; // sw
       7'b0110011: controls = 11'b1_xx_0_0_00_0_10_0; // R-type 
       7'b1100011: controls = 11'b0_01_0_0_00_1_01_0; // beq
@@ -177,7 +177,7 @@ module extend(input  logic [31:7] instr,
   always_comb
     case(immsrc) 
       // B-type (branches)
-      2'b01:   immext = {{20{instr[31]}}, instr[31:25], instr[11:7]}; 
+      2'b01:   immext = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
       // J-type (jal)     
       2'b11:   immext = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
       // I-type (imediato) adicionado
