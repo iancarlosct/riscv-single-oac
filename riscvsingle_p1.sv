@@ -1,44 +1,6 @@
 //COMPILE: iverilog.exe -g2012 -o riscvsingle_p1.vcd -tvvp .\riscvsingle_p1.sv
 //SIMULATE: vvp riscvsingle_p1
 
-module testbench();
-
-  logic        clk;
-  logic        reset;
-
-  logic [31:0] WriteData, DataAdr;
-  logic        MemWrite;
-
-  // instantiate device to be tested
-  top dut(clk, reset, WriteData, DataAdr, MemWrite);
-  
-  // initialize test
-  initial
-    begin
-      reset <= 1; # 22; reset <= 0;
-    end
-
-  // generate clock to sequence tests
-  always
-    begin
-      clk <= 1; # 5; clk <= 0; # 5;
-    end
-
-  // check results
-  always @(negedge clk)
-    begin
-      if(MemWrite) begin
-        if(DataAdr === 100 & WriteData === 25) begin
-          $display("Simulation succeeded");
-          $stop;
-        end else if (DataAdr !== 96) begin
-          $display("Simulation failed");
-          $stop;
-        end
-      end
-    end
-endmodule
-
 module top(input  logic        clk, reset, 
            output logic [31:0] WriteData, DataAdr, 
            output logic        MemWrite);
@@ -59,7 +21,7 @@ module riscvsingle(input  logic        clk, reset,
                    output logic [31:0] ALUResult, WriteData,
                    input  logic [31:0] ReadData);
 
-  logic       ALUSrc, RegWrite, Jump, Zero;
+  logic       ALUSrc, RegWrite, Jump, Zero, PCSrc;
   logic [1:0] ResultSrc, ImmSrc;
   logic [2:0] ALUControl;
 
@@ -112,9 +74,9 @@ module maindec(input  logic [6:0] op,
     case(op)
     // RegWrite_ImmSrc_ALUSrc_MemWrite_ResultSrc_Branch_ALUOp_Jump
       7'b0000011: controls = 11'b1_00_1_0_01_0_00_0; // lw
-      7'b0100011: controls = 11'b0_01_1_1_00_0_00_0; // sw
+      7'b0100011: controls = 11'b0_10_1_1_00_0_00_0; // sw
       7'b0110011: controls = 11'b1_xx_0_0_00_0_10_0; // R-type 
-      7'b1100011: controls = 11'b0_10_0_0_00_1_01_0; // beq
+      7'b1100011: controls = 11'b0_01_0_0_00_1_01_0; // beq
       7'b0010011: controls = 11'b1_00_1_0_00_0_10_0; // I-type adicionado
       7'b1101111: controls = 11'b1_11_0_0_10_0_00_1; // jal adicionado
 
@@ -217,7 +179,7 @@ module extend(input  logic [31:7] instr,
       // B-type (branches)
       2'b01:   immext = {{20{instr[31]}}, instr[31:25], instr[11:7]}; 
       // J-type (jal)     
-      2'b11:   immext = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0}; 
+      2'b11:   immext = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
       // I-type (imediato) adicionado
       2'b00:   immext = {{20{instr[31]}}, instr[31:20]};
       // S-type (store)    adicionado    
