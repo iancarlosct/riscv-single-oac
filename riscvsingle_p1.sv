@@ -1,6 +1,44 @@
 //COMPILE: iverilog.exe -g2012 -o riscvsingle_p1.vcd -tvvp .\riscvsingle_p1.sv
 //SIMULATE: vvp riscvsingle_p1
 
+module testbench();
+
+  logic        clk;
+  logic        reset;
+
+  logic [31:0] WriteData, DataAdr;
+  logic        MemWrite;
+
+  // instantiate device to be tested
+  top dut(clk, reset, WriteData, DataAdr, MemWrite);
+  
+  // initialize test
+  initial
+    begin
+      reset <= 1; # 22; reset <= 0;
+    end
+
+  // generate clock to sequence tests
+  always
+    begin
+      clk <= 1; # 5; clk <= 0; # 5;
+    end
+
+  // check results
+  always @(negedge clk)
+    begin
+      if(MemWrite) begin
+        if(DataAdr === 100 & WriteData === 25) begin
+          $display("Simulation succeeded");
+          $stop;
+        end else if (DataAdr !== 96) begin
+          $display("Simulation failed");
+          $stop;
+        end
+      end
+    end
+endmodule
+
 module top(input  logic        clk, reset, 
            output logic [31:0] WriteData, DataAdr, 
            output logic        MemWrite);
@@ -21,7 +59,7 @@ module riscvsingle(input  logic        clk, reset,
                    output logic [31:0] ALUResult, WriteData,
                    input  logic [31:0] ReadData);
 
-  logic       ALUSrc, RegWrite, Jump, Zero, PCSrc;
+  logic       ALUSrc, RegWrite, Jump, Zero, PCSrc; // [ALTERADO] PCSrc declarado explicitamente (antes: "ALUSrc, RegWrite, Jump, Zero;"), evita net implícita
   logic [1:0] ResultSrc, ImmSrc;
   logic [2:0] ALUControl;
 
@@ -54,7 +92,7 @@ module controller(input  logic [6:0] op,
              ALUSrc, RegWrite, Jump, ImmSrc, ALUOp);
   aludec  ad(op[5], funct3, funct7b5, ALUOp, ALUControl);
 
-  assign PCSrc = Jump | (Branch & Zero); //Jump Adicionado
+  assign PCSrc = Jump | (Branch & Zero); // [ALTERADO] Adiciona Jump à lógica de seleção do próximo PC 
 endmodule
 
 module maindec(input  logic [6:0] op,
@@ -68,17 +106,17 @@ module maindec(input  logic [6:0] op,
   logic [10:0] controls;
 
   assign {RegWrite, ImmSrc, ALUSrc, MemWrite,
-          ResultSrc, Branch, ALUOp, Jump} = controls;
+          ResultSrc, Branch, ALUOp, Jump} = controls; // [ALTERADO] Adiciona Jump ao conjunto de sinais de controle
 
   always_comb
     case(op)
     // RegWrite_ImmSrc_ALUSrc_MemWrite_ResultSrc_Branch_ALUOp_Jump
       7'b0000011: controls = 11'b1_00_1_0_01_0_00_0; // lw
-      7'b0100011: controls = 11'b0_10_1_1_00_0_00_0; // sw
+      7'b0100011: controls = 11'b0_10_1_1_00_0_00_0; // [ALTERADO] sw -> ImmSrc de 01 para 10 (S-type agora é 10)
       7'b0110011: controls = 11'b1_xx_0_0_00_0_10_0; // R-type 
-      7'b1100011: controls = 11'b0_01_0_0_00_1_01_0; // beq
-      7'b0010011: controls = 11'b1_00_1_0_00_0_10_0; // I-type adicionado
-      7'b1101111: controls = 11'b1_11_0_0_10_0_00_1; // jal adicionado
+      7'b1100011: controls = 11'b0_01_0_0_00_1_01_0; // [ALTERADO] beq -> ImmSrc de 10 para 01 (B-type agora é 01)
+      7'b0010011: controls = 11'b1_00_1_0_00_0_10_0; // [ADICIONADO] I-type 
+      7'b1101111: controls = 11'b1_11_0_0_10_0_00_1; // [ADICIONADO] jal
 
       default:    controls = 11'bx_xx_x_x_xx_x_xx_x; // non-implemented instruction
     endcase
@@ -141,7 +179,7 @@ module datapath(input  logic        clk, reset,
   // ALU logic
   mux2 #(32)  srcbmux(WriteData, ImmExt, ALUSrc, SrcB);
   alu         alu(SrcA, SrcB, ALUControl, ALUResult, Zero);
-  mux3 #(32)  resultmux(ALUResult, ReadData, PCPlus4, ResultSrc, Result);
+  mux3 #(32)  resultmux(ALUResult, ReadData, PCPlus4, ResultSrc, Result); // [ALTERADO] entrada d2 agora é PCPlus4 (antes: 32'b0), necessário para o jal salvar o endereço de retorno
 endmodule
 
 module regfile(input  logic        clk, 
@@ -177,13 +215,13 @@ module extend(input  logic [31:7] instr,
   always_comb
     case(immsrc) 
       // B-type (branches)
-      2'b01:   immext = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
+      2'b01:   immext = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0}; // [ALTERADO] antes era S-type)
       // J-type (jal)     
       2'b11:   immext = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
-      // I-type (imediato) adicionado
-      2'b00:   immext = {{20{instr[31]}}, instr[31:20]};
-      // S-type (store)    adicionado    
-      2'b10:   immext = {{20{instr[31]}}, instr[31:25], instr[11:7]};
+      // I-type (imediato)
+      2'b00:   immext = {{20{instr[31]}}, instr[31:20]}; // [ADICIONADO]
+      // S-type (store)  
+      2'b10:   immext = {{20{instr[31]}}, instr[31:25], instr[11:7]}; // [ADICIONADO] 
       // undefined
       default: immext = 32'bx; 
     endcase             
