@@ -59,7 +59,7 @@ module riscvsingle(input  logic        clk, reset,
                    output logic [31:0] ALUResult, WriteData,
                    input  logic [31:0] ReadData);
 
-  logic       ALUSrc, RegWrite, Jump, Zero, PCSrc; // [ALTERADO] PCSrc declarado explicitamente (antes: "ALUSrc, RegWrite, Jump, Zero;")
+  logic       ALUSrc, RegWrite, Jump, Zero, PCSrc; // [ALTERADO] PCSrc declarado explicitamente
   logic [1:0] ResultSrc, ImmSrc;
   logic [2:0] ALUControl;
 
@@ -92,7 +92,7 @@ module controller(input  logic [6:0] op,
              ALUSrc, RegWrite, Jump, ImmSrc, ALUOp);
   aludec  ad(op[5], funct3, funct7b5, ALUOp, ALUControl);
 
-  assign PCSrc = Jump | (Branch & Zero); // [ALTERADO] Adiciona Jump à lógica de seleção do próximo PC 
+  assign PCSrc = Jump | (Branch & Zero); // [ALTERADO] Adiciona Jump à lógica de seleção do próximo PC
 endmodule
 
 module maindec(input  logic [6:0] op,
@@ -112,9 +112,9 @@ module maindec(input  logic [6:0] op,
     case(op)
     // RegWrite_ImmSrc_ALUSrc_MemWrite_ResultSrc_Branch_ALUOp_Jump
       7'b0000011: controls = 11'b1_00_1_0_01_0_00_0; // lw
-      7'b0100011: controls = 11'b0_10_1_1_00_0_00_0; // [ALTERADO] sw -> ImmSrc de 01 para 10 (S-type agora é 10)
+      7'b0100011: controls = 11'b0_10_1_1_00_0_00_0; // [ALTERADO] sw -> ImmSrc de 01 para 10 
       7'b0110011: controls = 11'b1_xx_0_0_00_0_10_0; // R-type 
-      7'b1100011: controls = 11'b0_01_0_0_00_1_01_0; // [ALTERADO] beq -> ImmSrc de 10 para 01 (B-type agora é 01)
+      7'b1100011: controls = 11'b0_01_0_0_00_1_01_0; // [ALTERADO] beq -> ImmSrc de 10 para 01
       7'b0010011: controls = 11'b1_00_1_0_00_0_10_0; // [ADICIONADO] I-type 
       7'b1101111: controls = 11'b1_11_0_0_10_0_00_1; // [ADICIONADO] jal
 
@@ -179,7 +179,7 @@ module datapath(input  logic        clk, reset,
   // ALU logic
   mux2 #(32)  srcbmux(WriteData, ImmExt, ALUSrc, SrcB);
   alu         alu(SrcA, SrcB, ALUControl, ALUResult, Zero);
-  mux3 #(32)  resultmux(ALUResult, ReadData, PCPlus4, ResultSrc, Result); // [ALTERADO] entrada d2 agora é PCPlus4 (antes: 32'b0), necessário para o jal salvar o endereço de retorno
+  mux3 #(32)  resultmux(ALUResult, ReadData, PCPlus4, ResultSrc, Result); // [ALTERADO] entrada d2 do mux agora é PCPlus4
 endmodule
 
 module regfile(input  logic        clk, 
@@ -215,7 +215,7 @@ module extend(input  logic [31:7] instr,
   always_comb
     case(immsrc) 
       // B-type (branches)
-      2'b01:   immext = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0}; // [ALTERADO] antes era S-type)
+      2'b01:   immext = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0}; // [ALTERADO] antes era S-type
       // J-type (jal)     
       2'b11:   immext = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
       // I-type (imediato)
